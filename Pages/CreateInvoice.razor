@@ -1,0 +1,77 @@
+@page "/create-invoice"
+@using Microsoft.Extensions.Logging
+@inject ILogger<CreateInvoice> Logger
+@using System.Text.Json
+@using System.Text.Json.Serialization;
+@inject IHttpClientFactory ClientFactory
+
+
+<Header />
+
+<div class="p-8 bg-white rounded-b-lg">
+  @if (getUserError)
+  {
+      <h2 class="font-medium text-2xl mb-4 text-red-400">Error fetching user</h2>
+  }
+  else
+  {
+      <h2 class="font-medium text-2xl mb-4">Hello @user.FirstName</h2>
+  }
+  <EditForm Model="@invoiceModel" OnValidSubmit="@HandleValidSubmit">
+    <div class="my-4">
+      <label class="block mb-2">
+        Reference
+      </label>
+      <InputText @bind-Value="invoiceModel.Reference" class="p-4 border rounded focus:outline-none focus:ring focus:border-indigo-400 text-lg w-full" placeholder="REF-123" />
+    </div>
+
+    <button type="submit" class="inline-block mt-4 p-4 bg-indigo-400 font-medium text-lg text-white rounded-lg hover:bg-indigo-600 focus:bg-indigo-600">Create payment link</button>
+  </EditForm>
+</div>
+
+@code {
+  private Invoice invoiceModel = new();
+
+  private void HandleValidSubmit()
+  {
+    Logger.LogInformation("HandleValidSubmit called");
+
+    // Process the valid form
+  }
+  private User user;
+  private bool getUserError;
+  private bool shouldRender;
+
+  protected override bool ShouldRender() => shouldRender;
+
+  protected override async Task OnInitializedAsync()
+  {
+    var request = new HttpRequestMessage(HttpMethod.Get,
+        "https://api.sandbox.crezco.com/v1/users/ddf744d1-e705-46de-b613-b579f751b6bb");
+    request.Headers.Add("Accept", "application/json");
+    request.Headers.Add("X-Crezco-Key", "XXX");
+
+    var client = ClientFactory.CreateClient();
+
+    var response = await client.SendAsync(request);
+
+    if (response.IsSuccessStatusCode)
+    {
+      using var responseStream = await response.Content.ReadAsStreamAsync();
+      user = await JsonSerializer.DeserializeAsync
+          <User>(responseStream);
+    }
+    else
+    {
+      getUserError = true;
+    }
+
+    shouldRender = true;
+  }
+
+  public class User
+  {
+    [JsonPropertyName("firstName")]
+    public string FirstName { get; set; }
+  }
+}
